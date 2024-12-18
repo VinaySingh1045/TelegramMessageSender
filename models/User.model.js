@@ -7,7 +7,9 @@ const userSchema = new mongoose.Schema(
             type: String,
             unique: true
         },
-        telegramSession: String, // Telegram session to send messages from user account
+        telegramSession: {
+            type: String
+        },
     }
 );
 export const User = mongoose.model("User", userSchema);

@@ -1,48 +1,54 @@
 import jwt from "jsonwebtoken";
 import { User } from "../models/User.model.js";
 
-export const verfiyJWT = function authenticateToken(req, res, next) {
+export const verfiyJWT = async (req, res, next) => {
+    try {
+        // Extract token from cookies
+        const token = req.cookies?.token;
+        console.log("Token:", token);
 
-    // const token = req.cookies?.token
-    const token = req.headers["authorization"];
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized user request",
+            });
+        }
 
-    if (!token) return res.status(401).send("Access Denied");
+        // Verify and decode the token
+        const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+        console.log("Decoded Token:", decodedToken);
 
-    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+        // Normalize phone format if necessary
+        // const phone = decodedToken.phone.startsWith("+")
+        //     ? decodedToken.phone
+        //     : `+${decodedToken.phone}`;
 
-        if (err) return res.status(403).send("Invalid Token");
+        // Find user in the database
+        // const phone1 = "+919512279656";
+        // const user1 = await User.findOne({ phone });
+        // console.log("User found:", user);
 
+
+        const user = await User.findOne({ phone : decodedToken.phone });
+        console.log("User from DB:", user);
+
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid Access Token",
+            });
+        }
+
+        // Attach user to the request
         req.user = user;
-
         next();
+    } catch (error) {
+        console.log("Error during token verification:", error);
 
-    });
-}
+        if (error.name === "TokenExpiredError") {
+            return res.status(401).json({ error: "Access token expired" });
+        }
 
-// export const verfiyJWT = async (req, res, next) => {
-
-//     try {
-//         const token = req.cookies?.token
-
-//         if (!token) {
-//             return res.status(401).json({
-//                 success: false,
-//                 message: "Unauthorized user request"
-//             })
-//         }
-
-//         const decodedToken = jwt.verify(token, process.env.JWT_SECRET)
-
-//         const user = await User.findById(decodedToken?._id)
-
-//         if (!user) {
-//             throw new ApiError(401, "Invalid Access Token")
-//         }
-
-//         req.user = user
-//         next();
-
-//     } catch (error) {
-//         console.log(error);
-//     }
-// }
+        res.status(500).json({ error: "Token verification failed" });
+    }
+};
